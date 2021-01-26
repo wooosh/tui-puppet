@@ -1,15 +1,18 @@
 #include <string.h>
-#include <vterm.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <pty.h>
 #include <sys/wait.h>
+
+#include <vterm.h>
+#include <openssl/sha.h>
 
 VTerm *vt;
 VTermScreen *vts;
 size_t term_w = 132;
 size_t term_h = 43;
 
+// keymap
 struct key_pair {
   char* key;
   char* val;
@@ -40,6 +43,7 @@ int main(int argc, char** argv) {
 
   vts = vterm_obtain_screen(vt);
   vterm_screen_reset(vts, 1);
+
 
   struct winsize winp = {term_h, term_w};
  
@@ -76,9 +80,8 @@ int main(int argc, char** argv) {
       break;
     }
 
-    //write(master, "bruh", 4);
     // check if any terminal output is available
-    struct timeval tv = {0, 10000};
+    struct timeval tv = {0, 50000};
     FD_ZERO(&rfds);
     FD_SET(master, &rfds);
     if (select(master + 1, &rfds, NULL, NULL, &tv)) {
@@ -120,6 +123,27 @@ int main(int argc, char** argv) {
         write(master, keyname, strlen(keyname));
         found_key:;
       }
+    } else if (strcmp(cmd, "hash") == 0) {
+      SHA_CTX ctx;
+      SHA1_Init(&ctx);
+
+      //VTermPos cursorpos;
+      //vterm_state_get_cursorpos(vt_state, &cursorpos);
+      //SHA1_Update(&ctx, &cursorpos, sizeof(VTermPos));
+      vts = vterm_obtain_screen(vt);
+      VTermState *vt_state = vterm_obtain_state(vt);
+
+      for (int x = 0; x < term_w; x++) {
+        for (int y = 0; y < term_h; y++) {
+          VTermScreenCell cell;
+          vterm_screen_get_cell(vts, (VTermPos){y, x},&cell);
+          SHA1_Update(&ctx, cell.chars, cell.width*4);
+        }
+      }
+
+      unsigned char hash[SHA_DIGEST_LENGTH];
+      SHA1_Final(hash, &ctx);
+      write(STDOUT_FILENO, hash, SHA_DIGEST_LENGTH);
     }
   }
 
