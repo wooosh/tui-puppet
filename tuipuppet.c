@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <termios.h>
 #include <poll.h>
+#include <signal.h>
 
 #include <vterm.h>
 #include <openssl/sha.h>
@@ -17,15 +18,25 @@ void die(const char* msg) {
   exit(EXIT_FAILURE);
 }
 
+
 static struct termios origTermios;
 void restore_termios() {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &origTermios);
+  // clear screen
+  write(STDERR_FILENO, "\x1b""c", 2);
+}
+
+void sigint_handle(int signum) {
+  exit(EXIT_FAILURE);
 }
 
 void setup_termios() {
   if (tcgetattr(STDIN_FILENO, &origTermios) == -1)
     die("tcgetattr");
-  atexit(restore_termios);
+  if (atexit(restore_termios) != 0)
+    die("atexit");
+  if (signal(SIGINT, sigint_handle) == SIG_ERR)
+    die("signal");
 
   struct termios raw = origTermios;
   // set up the terminal to not print characters we type or response to escape
@@ -79,19 +90,15 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
 
+  // TODO: do as much as possible after pty init
   // vterm initialization
   struct winsize term_size = {43, 132};
-  VTerm *vt = vterm_new(term_size.ws_col, term_size.ws_row);
+  VTerm *vt = vterm_new(term_size.ws_row, term_size.ws_col);
   vterm_set_utf8(vt, 1);
 
   VTermScreen *vts = vterm_obtain_screen(vt);
   vterm_screen_reset(vts, 1);
 
-  // resize host terminal and set termios properly
-  if (show_terminal) {
-    fprintf(stderr, "\x1b[8;%zu;%zut", term_size.ws_row, term_size.ws_col);
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &origTermios);
-  }
 
   // TODO: split into own function and have master side return
   // master side accepts output from process and provides input to it
@@ -101,14 +108,18 @@ int main(int argc, char** argv) {
   // shift the first two arguments, so that only the executable name and its arguments remain
   argv += 2;
   pid_t process = exec_in_pty(master, slave, argv);
+  
+  // resize host terminal and set termios properly
+  if (show_terminal) {
+    fprintf(stderr, "\x1b[8;%zu;%zut", term_size.ws_row, term_size.ws_col);
+    setup_termios();
+  }
 
   struct pollfd pollfds[] = {
-    {STDIN_FILENO, POLLIN},
     {master, POLLIN}
   };
 
   short *master_events = &pollfds[0].revents;
-  short *stdin_events = &pollfds[1].revents;
 
   while (1) {
     // TODO: move waitpid and select into their own functions
@@ -119,13 +130,14 @@ int main(int argc, char** argv) {
     }
 
     // TODO: configurable timeout
-    // check if any terminal output or stdin input is available for 500ms
-    int ready = poll(pollfds, 2, 500);
+    // check if any terminal output or stdin input is available for 250ms
+    int ready = poll(pollfds, 1, 250);
     
     if (ready == -1) {
       die("poll");
     }
 
+    if (ready > 0) {
     // check the terminal for process output
     if (*master_events != 0) {
       if (*master_events & POLLIN) { // input available
@@ -145,11 +157,12 @@ int main(int argc, char** argv) {
           size = vterm_output_read(vt, buf, 4096);
           write(master, buf, size);
         }
+        continue;
       } else { // POLLERR | POLLHUP
         break;
       }
     }
-
+    }
 
     // TODO: put command handler into it's own function
     // handle command
@@ -199,10 +212,10 @@ int main(int argc, char** argv) {
       vts = vterm_obtain_screen(vt);
       VTermState *vt_state = vterm_obtain_state(vt);
 
-      for (int x = 0; x < term_size.ws_col; x++) {
-        for (int y = 0; y < term_size.ws_row; y++) {
+      for (int col = 0; col < term_size.ws_col; col++) {
+        for (int row = 0; row < term_size.ws_row; row++) {
           VTermScreenCell cell;
-          vterm_screen_get_cell(vts, (VTermPos){y, x},&cell);
+          vterm_screen_get_cell(vts, (VTermPos){row, col},&cell);
           SHA1_Update(&ctx, cell.chars, cell.width*4);
         }
       }
@@ -214,11 +227,10 @@ int main(int argc, char** argv) {
     // TODO: handle unknown command
   }
 
-  close(master);
-
   // cleanup
+  close(master);
   fclose(stream);
   vterm_free(vt);
+  exit(EXIT_SUCCESS);
 
-  return 0;
 }
