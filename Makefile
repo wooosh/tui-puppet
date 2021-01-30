@@ -6,16 +6,16 @@ LDFLAGS += -lutil
 
 .PHONY: all clean install uninstall
 
-all: tuitest
+all: tui-puppet
 
-tuitest: tuitest.c keymap.h
-	$(CC) $(CFLAGS) -o tuitest tuitest.c  $(LDFLAGS)
+tui-puppet: tuipuppet.c keymap.h
+	$(CC) $(CFLAGS) -o tui-puppet tuipuppet.c  $(LDFLAGS)
 
 clean:
-	rm tuitest
+	rm tui-puppet
 
 install: tuitest
-	install -m 755 tuitest $(DESTDIR)$(PREFIX)/bin
+	install -m 755 tui-puppet $(DESTDIR)$(PREFIX)/bin
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/tuitest
+	rm -f $(DESTDIR)$(PREFIX)/bin/tui-puppet
