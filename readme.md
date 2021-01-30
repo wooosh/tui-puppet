@@ -83,6 +83,7 @@ sudo make install
 
 # todo
 
+- [ ] handle ctrl-c properly
 - [ ] pause on quit in show terminal mode
 - [ ] configurable poll timeout
 - [ ] sleep command
