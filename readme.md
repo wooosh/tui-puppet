@@ -4,10 +4,11 @@
 and reads a command file that can send input, resize the terminal, and capture
 the screen.
 
-Screen capturing is achieved using the `hash` command, which writes the screen
-state to stdout. You can redirect stdout to a file and use `cmp` to compare with
-another hash to ensure your TUI program renders consistently. You can capture
-the screen state as many times as you would like.
+Screen capturing is achieved using the `hash` command (all commands are listed
+below), which writes a hash of the screen state to stdout. You can redirect
+stdout to a file and use `cmp` to compare with another hash to ensure your TUI 
+program renders consistently. You can capture the screen state as many times as
+you would like during the lifetime of the process.
 
 ```
 usage: tui-puppet [-r] <command_file> <executable> <arguments to executable>
