@@ -26,12 +26,21 @@ keystream [key] ...
   special key names:
     <space>
     <enter>
-    <ctrl-X> X can be any one byte character
-  keynames to be added:
-    <esc>
-    <f1> through <f12>
-    <up>, <down>, <left>, <right>
     <tab>
+
+    <esc>
+
+    <up>, <down>, <right>, <left>
+    
+    <backspace>
+      NOTE: uses ascii delete, not ctrl-h, which is used in some terminals
+    <delete>
+
+    <ctrl-X> 
+      X can be any one byte character
+  keynames to be added:
+    <f1> through <f12>
+    <ctrl-up,down,right,left>
     <ctrl-shift-x>
 
   Please create an issue if you need keys other than these.
@@ -70,7 +79,6 @@ sudo make install
 
 # todo
 
-- [ ] move keymaps to header
 - [ ] clean up code
 - [ ] resizing
 - [ ] quit command

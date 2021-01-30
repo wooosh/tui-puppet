@@ -1,3 +1,5 @@
+#include "keymap.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -12,18 +14,6 @@ VTerm *vt;
 VTermScreen *vts;
 size_t term_w = 132;
 size_t term_h = 43;
-
-// keymap
-struct key_pair {
-  char* key;
-  char* val;
-};
-
-struct key_pair keymap[] = {
-  {"<enter>", "\r"},
-  {"<space>", " "},
-  {NULL, NULL}
-};
 
 int main(int argc, char** argv) {
   bool show_terminal = false;
