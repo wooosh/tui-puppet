@@ -5,6 +5,7 @@ OBJ = $(patsubst src/%.c,build/%.o,$(SRC))
 DEP = $(OBJ:.o=.d)
 
 CFLAGS += `pkg-config --cflags vterm libcrypto`
+CFLAGS += -g
 LDFLAGS += `pkg-config --libs vterm libcrypto`
 LDFLAGS += -lutil
 

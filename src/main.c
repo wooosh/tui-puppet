@@ -44,13 +44,12 @@ int main(int argc, char** argv) {
   vts = vterm_obtain_screen(vt);
   vterm_screen_reset(vts, 1);
 
-
   struct winsize winp = {term_h, term_w};
  
   // resize host terminal
   // TODO: flag to show terminal state
-  fprintf(stderr, "\x1b[8;%zu;%zut", term_h, term_w);
- 
+  // fprintf(stderr, "\x1b[8;%zu;%zut", term_h, term_w);
+
   // master side accepts output from process and provides input to it
   int master, slave;
   openpty(&master, &slave, NULL, NULL, &winp);
@@ -80,18 +79,24 @@ int main(int argc, char** argv) {
       break;
     }
 
+    // TODO: configurable timeout
     // check if any terminal output is available
     struct timeval tv = {0, 50000};
     FD_ZERO(&rfds);
     FD_SET(master, &rfds);
-    if (select(master + 1, &rfds, NULL, NULL, &tv)) {
+    int retval;
+    if (retval = select(master + 1, &rfds, NULL, NULL, &tv)) {
+      if (retval < 0)
+        break;
       size = read(master, buf, 4096);
       vterm_input_write(vt, buf, size);
       
       buf[size] = '\0';
+      /*
       fprintf(stderr, buf);
       fflush(stderr);
-      
+      */
+
       if (vterm_output_get_buffer_current(vt) > 0) {
         size = vterm_output_read(vt, buf, 4096);
         write(master, buf, size);
@@ -110,6 +115,16 @@ int main(int argc, char** argv) {
       while (1) {
         keyname = strtok(NULL, " \n");
         if (keyname == NULL) break;
+
+        // check if control key
+        // TODO: proper keybind parser
+        if (strncmp(keyname, "<ctrl-", strlen("<ctrl-")) == 0) {
+          char key = keyname[strlen("<ctrl-")];
+          // apply control modifier
+          key &= 0x1f;
+          write(master, &key, 1);
+          goto found_key;
+        }
 
         // translate key if applicable
         struct key_pair *kp = keymap;
