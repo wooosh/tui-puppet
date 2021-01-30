@@ -70,9 +70,9 @@ sudo make install
 
 # todo
 
-[ ] move keymaps to header
-[ ] clean up code
-[ ] resizing
-[ ] quit command
-[ ] full keybind parser
-[ ] comments in commandfiles
+- [ ] move keymaps to header
+- [ ] clean up code
+- [ ] resizing
+- [ ] quit command
+- [ ] full keybind parser
+- [ ] comments in commandfiles
