@@ -1,12 +1,16 @@
-# tuitest
+# tui-puppet
 
-`tuitest` runs a program inside an emulated terminal (xterm/vt100 compatible)
-and reads a command file that is capable of sending input, resizing, and
-capturing the screen state as a hash. These hashes can then be compared to
-ensure your tui program renders consistently.
+`tui-puppet` runs a program inside an emulated terminal (xterm/vt100 compatible)
+and reads a command file that can send input, resize the terminal, and capture
+the screen.
+
+Screen capturing is achieved using the `hash` command, which writes the screen
+state to stdout. You can redirect stdout to a file and use `cmp` to compare with
+another hash to ensure your TUI program renders consistently. You can capture
+the screen state as many times as you would like.
 
 ```
-usage: tuitest [-r] <command_file> <executable> <arguments to executable>
+usage: tui-puppet [-r] <command_file> <executable> <arguments to executable>
   -r | show the terminal state on stderr
      |   this is designed to be used with xterm-truecolor with the following
      |   set in .Xresources:
