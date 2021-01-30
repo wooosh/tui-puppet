@@ -52,7 +52,24 @@ quit
   Exits the program.
 ```
 
+# Installation
+
+Run dependencies:
+- libvterm
+- libcrypto (part of openssl)
+
+Build dependencies:
+- pkgconfig
+- c compiler
+- make
+
+```
+make
+sudo make install
+```
+
 # todo
+
 [ ] move keymaps to header
 [ ] clean up code
 [ ] resizing

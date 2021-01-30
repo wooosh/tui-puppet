@@ -1,29 +1,21 @@
-BUILDDIR = build
-TARGET = tuitest
-SRC = $(wildcard src/*.c)
-OBJ = $(patsubst src/%.c,build/%.o,$(SRC))
-DEP = $(OBJ:.o=.d)
+PREFIX = /usr/local
 
 CFLAGS += `pkg-config --cflags vterm libcrypto`
-CFLAGS += -g
 LDFLAGS += `pkg-config --libs vterm libcrypto`
 LDFLAGS += -lutil
 
-.PHONY: all clean
+.PHONY: all clean install uninstall
 
-all: $(TARGET)
+all: tuitest
 
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
--include $(DEP)
-
-build/%.o: src/%.c | $(BUILDDIR)
-	$(CC) $(CFLAGS) -MMD -MP -o $@ -c $< $(LDFLAGS) 
-
-$(BUILDDIR):
-	mkdir -p $(BUILDDIR)
+tuitest: tuitest.c keymap.h
+	$(CC) $(CFLAGS) -o tuitest tuitest.c  $(LDFLAGS)
 
 clean:
-	$(RM) -r $(BUILDDIR)
-	$(RM) $(TARGET)
+	rm tuitest
+
+install: tuitest
+	install -m 755 tuitest $(DESTDIR)$(PREFIX)/bin
+
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/tuitest

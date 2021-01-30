@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <pty.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 #include <vterm.h>
 #include <openssl/sha.h>
@@ -25,9 +26,13 @@ struct key_pair keymap[] = {
 };
 
 int main(int argc, char** argv) {
-  // TODO: arguments to executable
+  bool show_terminal = false;
+  if (argc > 2 && strcmp(argv[1], "-r") == 0) {
+    show_terminal = true;
+  }
+
   if (argc != 3) {
-    fprintf(stderr, "Usage: %s <commandfile> <executable> <arguments to executable>\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-r] <commandfile> <executable> <arguments to executable>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
