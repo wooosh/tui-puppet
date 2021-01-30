@@ -7,7 +7,7 @@ ensure your tui program renders consistently.
 
 ```
 usage: tuitest [-r] <command_file> <executable> <arguments to executable>
-  -r | show the terminal state
+  -r | show the terminal state on stderr
 ```
 
 The command file format is relatively simple. Each line contains a single
@@ -55,7 +55,7 @@ Commands to be added:
   Does nothing and ignores the rest of the line. A space is required after #
 
 resize <width <height>
-  Resizes the terminal to width x height.
+  Resizes the terminal to width x height. The terminal is 132x42 by default.
 
 quit
   Exits the program.
@@ -79,8 +79,11 @@ sudo make install
 
 # todo
 
+- [ ] configurable poll timeout
 - [ ] clean up code
 - [ ] resizing
 - [ ] quit command
 - [ ] full keybind parser
-- [ ] comments in commandfiles
+- [ ] comments in commandfile
+- [ ] hash color info
+- [ ] hash cursor position

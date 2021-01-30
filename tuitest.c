@@ -10,15 +10,13 @@
 #include <vterm.h>
 #include <openssl/sha.h>
 
-VTerm *vt;
-VTermScreen *vts;
-size_t term_w = 132;
-size_t term_h = 43;
-
 int main(int argc, char** argv) {
+  // parse arguments
   bool show_terminal = false;
   if (argc > 2 && strcmp(argv[1], "-r") == 0) {
     show_terminal = true;
+    argv++;
+    argc--;
   }
 
   if (argc != 3) {
@@ -33,18 +31,18 @@ int main(int argc, char** argv) {
   }
 
   // vterm initialization
-  vt = vterm_new(term_h, term_w);
+  struct winsize winp = {43, 132};
+  VTerm *vt = vterm_new(term_h, term_w);
   vterm_set_utf8(vt, 1);
 
-  vts = vterm_obtain_screen(vt);
+  VTermScreen *vts = vterm_obtain_screen(vt);
   vterm_screen_reset(vts, 1);
 
-  struct winsize winp = {term_h, term_w};
- 
   // resize host terminal
-  // TODO: flag to show terminal state
-  // fprintf(stderr, "\x1b[8;%zu;%zut", term_h, term_w);
+  if (show_terminal)
+    fprintf(stderr, "\x1b[8;%zu;%zut", term_h, term_w);
 
+  // TODO: split into own function and have master side return
   // master side accepts output from process and provides input to it
   int master, slave;
   openpty(&master, &slave, NULL, NULL, &winp);
@@ -68,6 +66,7 @@ int main(int argc, char** argv) {
   ssize_t size;
 
   while (1) {
+    // TODO: move waitpid and select into their own functions
     // check if process is still alive
     if (waitpid(pid, NULL, WNOHANG) == pid) {
       // TODO: how to handle early exits?
@@ -98,10 +97,12 @@ int main(int argc, char** argv) {
       }
     }
 
+    // TODO: put command handler into it's own function
     // handle command
     char* line = NULL;
     size_t len = 0;
-    // TODO: handle getline returning error
+
+    // TODO: handle getline returning error properly
     if (getline(&line, &len, stream) == -1) continue;
 
     char* cmd = strtok(line, " \n");
@@ -140,6 +141,7 @@ int main(int argc, char** argv) {
       //VTermPos cursorpos;
       //vterm_state_get_cursorpos(vt_state, &cursorpos);
       //SHA1_Update(&ctx, &cursorpos, sizeof(VTermPos));
+
       vts = vterm_obtain_screen(vt);
       VTermState *vt_state = vterm_obtain_state(vt);
 
@@ -155,6 +157,7 @@ int main(int argc, char** argv) {
       SHA1_Final(hash, &ctx);
       write(STDOUT_FILENO, hash, SHA_DIGEST_LENGTH);
     }
+    // TODO: handle unknown command
   }
 
   close(master);
