@@ -6,9 +6,57 @@
 #include <pty.h>
 #include <sys/wait.h>
 #include <stdbool.h>
+#include <termios.h>
 
 #include <vterm.h>
 #include <openssl/sha.h>
+
+void die(const char* msg) {
+  perror(msg);
+  exit(EXIT_FAILURE);
+}
+
+static struct termios origTermios;
+void restore_termios() {
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &origTermios);
+}
+
+void setup_termios() {
+  if (tcgetattr(STDIN_FILENO, &origTermios) == -1)
+    die("tcgetattr");
+  atexit(restore_termios);
+
+  struct termios raw = origTermios;
+  // set up the terminal to not print characters we type or response to escape
+  // codes
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+  raw.c_cc[VMIN] = 0;
+  raw.c_cc[VTIME] = 1;
+
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+    die("tcsetattr");
+}
+
+pid_t exec_in_pty(int master, int slave, char** argv) {
+  pid_t pid = fork();
+  
+  if (pid == 0) {
+    close(master);
+    
+    // redirect process io to terminal device
+    dup2(slave, STDIN_FILENO);
+    dup2(slave, STDOUT_FILENO);
+    dup2(slave, STDERR_FILENO);
+    
+    close(slave);
+
+    execvp(argv[0], argv);
+  }
+
+  close(slave);
+
+  return pid;
+}
 
 int main(int argc, char** argv) {
   // parse arguments
@@ -31,35 +79,27 @@ int main(int argc, char** argv) {
   }
 
   // vterm initialization
-  struct winsize winp = {43, 132};
-  VTerm *vt = vterm_new(term_h, term_w);
+  struct winsize term_size = {43, 132};
+  VTerm *vt = vterm_new(term_size.ws_col, term_size.ws_row);
   vterm_set_utf8(vt, 1);
 
   VTermScreen *vts = vterm_obtain_screen(vt);
   vterm_screen_reset(vts, 1);
 
-  // resize host terminal
-  if (show_terminal)
-    fprintf(stderr, "\x1b[8;%zu;%zut", term_h, term_w);
+  // resize host terminal and set termios properly
+  if (show_terminal) {
+    fprintf(stderr, "\x1b[8;%zu;%zut", term_size.ws_row, term_size.ws_col);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &origTermios);
+  }
 
   // TODO: split into own function and have master side return
   // master side accepts output from process and provides input to it
   int master, slave;
-  openpty(&master, &slave, NULL, NULL, &winp);
+  openpty(&master, &slave, NULL, NULL, &term_size);
 
-  pid_t pid = fork();
-  if (pid == 0) {
-    close(master);
-    // redirect process io to terminal device
-    dup2(slave, STDIN_FILENO);
-    dup2(slave, STDOUT_FILENO);
-    dup2(slave, STDERR_FILENO);
-    close(slave);
-
-    argv += 2;
-    execvp(argv[0], argv);
-  }
-  close(slave);
+  // shift the first two arguments, so that only the executable name and its arguments remain
+  argv += 2;
+  pid_t process = exec_in_pty(master, slave, argv);
 
   fd_set rfds;
   char buf[4097];
@@ -68,7 +108,7 @@ int main(int argc, char** argv) {
   while (1) {
     // TODO: move waitpid and select into their own functions
     // check if process is still alive
-    if (waitpid(pid, NULL, WNOHANG) == pid) {
+    if (waitpid(process, NULL, WNOHANG) == process) {
       // TODO: how to handle early exits?
       break;
     }
@@ -83,13 +123,16 @@ int main(int argc, char** argv) {
       if (retval < 0)
         break;
       size = read(master, buf, 4096);
+      if (size == -1) {
+        break;
+      }
       vterm_input_write(vt, buf, size);
       
-      buf[size] = '\0';
-      /*
-      fprintf(stderr, buf);
-      fflush(stderr);
-      */
+      if (show_terminal) {
+        buf[size] = '\0';
+        fprintf(stderr, buf);
+        fflush(stderr);
+      }
 
       if (vterm_output_get_buffer_current(vt) > 0) {
         size = vterm_output_read(vt, buf, 4096);
@@ -145,8 +188,8 @@ int main(int argc, char** argv) {
       vts = vterm_obtain_screen(vt);
       VTermState *vt_state = vterm_obtain_state(vt);
 
-      for (int x = 0; x < term_w; x++) {
-        for (int y = 0; y < term_h; y++) {
+      for (int x = 0; x < term_size.ws_col; x++) {
+        for (int y = 0; y < term_size.ws_row; y++) {
           VTermScreenCell cell;
           vterm_screen_get_cell(vts, (VTermPos){y, x},&cell);
           SHA1_Update(&ctx, cell.chars, cell.width*4);

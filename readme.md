@@ -8,6 +8,10 @@ ensure your tui program renders consistently.
 ```
 usage: tuitest [-r] <command_file> <executable> <arguments to executable>
   -r | show the terminal state on stderr
+     |   this is designed to be used with xterm-truecolor with the following
+     |   set in .Xresources:
+     |
+     |    *VT100.allowWindowOps: true 
 ```
 
 The command file format is relatively simple. Each line contains a single
@@ -79,7 +83,9 @@ sudo make install
 
 # todo
 
+- [ ] pause on quit in show terminal mode
 - [ ] configurable poll timeout
+- [ ] sleep command
 - [ ] clean up code
 - [ ] resizing
 - [ ] quit command
@@ -87,3 +93,5 @@ sudo make install
 - [ ] comments in commandfile
 - [ ] hash color info
 - [ ] hash cursor position
+- [ ] export proper terminal variable
+- [ ] tests
