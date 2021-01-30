@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 #include <termios.h>
+#include <poll.h>
 
 #include <vterm.h>
 #include <openssl/sha.h>
@@ -101,9 +102,13 @@ int main(int argc, char** argv) {
   argv += 2;
   pid_t process = exec_in_pty(master, slave, argv);
 
-  fd_set rfds;
-  char buf[4097];
-  ssize_t size;
+  struct pollfd pollfds[] = {
+    {STDIN_FILENO, POLLIN},
+    {master, POLLIN}
+  };
+
+  short *master_events = &pollfds[0].revents;
+  short *stdin_events = &pollfds[1].revents;
 
   while (1) {
     // TODO: move waitpid and select into their own functions
@@ -114,31 +119,37 @@ int main(int argc, char** argv) {
     }
 
     // TODO: configurable timeout
-    // check if any terminal output is available
-    struct timeval tv = {0, 50000};
-    FD_ZERO(&rfds);
-    FD_SET(master, &rfds);
-    int retval;
-    if (retval = select(master + 1, &rfds, NULL, NULL, &tv)) {
-      if (retval < 0)
-        break;
-      size = read(master, buf, 4096);
-      if (size == -1) {
-        break;
-      }
-      vterm_input_write(vt, buf, size);
-      
-      if (show_terminal) {
-        buf[size] = '\0';
-        fprintf(stderr, buf);
-        fflush(stderr);
-      }
+    // check if any terminal output or stdin input is available for 500ms
+    int ready = poll(pollfds, 2, 500);
+    
+    if (ready == -1) {
+      die("poll");
+    }
 
-      if (vterm_output_get_buffer_current(vt) > 0) {
-        size = vterm_output_read(vt, buf, 4096);
-        write(master, buf, size);
+    // check the terminal for process output
+    if (*master_events != 0) {
+      if (*master_events & POLLIN) { // input available
+        char buf[4096];
+        ssize_t size = read(master, buf, 4096);
+        if (size == -1) {
+          die("read");
+        }
+        vterm_input_write(vt, buf, size);
+      
+        if (show_terminal) {
+          // TODO: error handling on everything
+          write(STDERR_FILENO, buf, size);
+        }
+
+        if (vterm_output_get_buffer_current(vt) > 0) {
+          size = vterm_output_read(vt, buf, 4096);
+          write(master, buf, size);
+        }
+      } else { // POLLERR | POLLHUP
+        break;
       }
     }
+
 
     // TODO: put command handler into it's own function
     // handle command
