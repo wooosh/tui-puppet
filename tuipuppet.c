@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     }
 
     // TODO: configurable timeout
-    // check if any terminal output or stdin input is available for 250ms
-    int ready = poll(pollfds, 1, 250);
+    // check if any terminal output or stdin input is available for 10ms
+    int ready = poll(pollfds, 1, 10);
     
     if (ready == -1) {
       die("poll");
@@ -223,6 +223,12 @@ int main(int argc, char** argv) {
       unsigned char hash[SHA_DIGEST_LENGTH];
       SHA1_Final(hash, &ctx);
       write(STDOUT_FILENO, hash, SHA_DIGEST_LENGTH);
+      
+      if (show_terminal) {
+        // wait for keypress
+        char scratch;
+        read(STDIN_FILENO, &scratch, 1);
+      }
     }
     // TODO: handle unknown command
   }
