@@ -205,12 +205,13 @@ int main(int argc, char** argv) {
       SHA_CTX ctx;
       SHA1_Init(&ctx);
 
-      //VTermPos cursorpos;
-      //vterm_state_get_cursorpos(vt_state, &cursorpos);
-      //SHA1_Update(&ctx, &cursorpos, sizeof(VTermPos));
 
       vts = vterm_obtain_screen(vt);
       VTermState *vt_state = vterm_obtain_state(vt);
+      
+      VTermPos cursorpos;
+      vterm_state_get_cursorpos(vt_state, &cursorpos);
+      SHA1_Update(&ctx, &cursorpos, sizeof(VTermPos));
 
       for (int col = 0; col < term_size.ws_col; col++) {
         for (int row = 0; row < term_size.ws_row; row++) {
