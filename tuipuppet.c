@@ -18,7 +18,6 @@ void die(const char* msg) {
   exit(EXIT_FAILURE);
 }
 
-
 static struct termios origTermios;
 void restore_termios() {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &origTermios);
@@ -68,6 +67,35 @@ pid_t exec_in_pty(int master, int slave, char** argv) {
   close(slave);
 
   return pid;
+}
+
+static char scratch_key;
+void parse_key(char *keyname, char **result, size_t *len) {
+  // check if control key
+  // TODO: proper keybind parser
+  if (strncmp(keyname, "<ctrl-", strlen("<ctrl-")) == 0) {
+    scratch_key = keyname[strlen("<ctrl-")];
+    // apply control modifier
+    scratch_key &= 0x1f;
+    
+    *result = &scratch_key;
+    *len = 1;
+    return;
+  }
+
+  // translate key if applicable
+  struct key_pair *kp = keymap;
+  for (struct key_pair *kp = keymap; kp->key != NULL; kp++) {
+    if (strcmp(kp->key, keyname) == 0) {
+      *result = kp->val;
+      *len = strlen(kp->val);
+      return;
+    }
+  }
+  
+  // if key not in keymap
+  *result = keyname;
+  *len = strlen(keyname);
 }
 
 int main(int argc, char** argv) {
@@ -179,28 +207,33 @@ int main(int argc, char** argv) {
         keyname = strtok(NULL, " \n");
         if (keyname == NULL) break;
 
-        // check if control key
-        // TODO: proper keybind parser
-        if (strncmp(keyname, "<ctrl-", strlen("<ctrl-")) == 0) {
-          char key = keyname[strlen("<ctrl-")];
-          // apply control modifier
-          key &= 0x1f;
-          write(master, &key, 1);
-          goto found_key;
-        }
-
-        // translate key if applicable
-        struct key_pair *kp = keymap;
-        for (struct key_pair *kp = keymap; kp->key != NULL; kp++) {
-          if (strcmp(kp->key, keyname) == 0) {
-            write(master, kp->val, strlen(kp->val));
-            goto found_key;
-          }
-        }
-        // if key not in keymap
-        write(master, keyname, strlen(keyname));
-        found_key:;
+        char* result;
+        size_t len;
+        parse_key(keyname, &result, &len);
+        write(master, result, len);
       }
+    } else if (strcmp(cmd, "repeat") == 0) {
+      char* num_str = strtok(NULL, " ");
+      if (num_str == NULL) {
+        fprintf(stderr, "Invalid repeat syntax\n");
+        exit(EXIT_FAILURE);
+      }
+      size_t num = strtoul(num_str, NULL, 0);
+
+      char* keyname = strtok(NULL, " \n");
+      if (keyname == NULL) {
+        fprintf(stderr, "Invalid repeat syntax\n");
+        exit(EXIT_FAILURE);
+      }
+
+      char* result;
+      size_t len;
+      parse_key(keyname, &result, &len);
+
+      for (int i=0; i<num; i++) {
+        write(master, result, len);
+      }
+      
     } else if (strcmp(cmd, "hash") == 0) {
       SHA_CTX ctx;
       SHA1_Init(&ctx);

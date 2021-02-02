@@ -54,6 +54,9 @@ keystream [key] ...
 
   Please create an issue if you need keys other than these.
 
+repeat <number> <key>
+  Repeats a key a certain number of times.
+
 hash
   Prints the hashed terminal state to stdout.
 ```
