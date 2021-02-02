@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
     argc--;
   }
 
-  if (argc != 3) {
+  if (argc < 3) {
     fprintf(stderr, "Usage: %s [-r] <commandfile> <executable> <arguments to executable>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
