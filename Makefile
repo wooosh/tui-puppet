@@ -14,7 +14,7 @@ tui-puppet: tuipuppet.c keymap.h
 clean:
 	rm tui-puppet
 
-install: tuitest
+install: tui-puppet
 	install -m 755 tui-puppet $(DESTDIR)$(PREFIX)/bin
 
 uninstall:
